@@ -1,4 +1,5 @@
-Coursera Practical Machine Learning Final Project
+Coursera Practical Machine Learning - Final Project
+
 Pietro Zanetti
 5/22/2020
 This document is the final project for the Coursera “Practical Machine Learning” course
