@@ -16,4 +16,4 @@ The goal of your project is to predict the manner in which they did the exercise
 
 Note: The dataset used in this project is a courtesy of “Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers’ Data Classification of Body Postures and Movements”
 
-CODE SUMMARY : In the first section I worked with input data as to create a valid and clean dataset dividend in the testing and training (I used 70/30) Then, in orfer to make the best prediction, I compared the three main methods : binary trees, random forest and GBM. As the output showed, the random forest was the most accurate with a near to zero out of sample error.
+CODE SUMMARY : In the first section I worked with input data as to create a valid and clean dataset dividend in the testing and training (I used 70/30) Then, in order to make the best prediction, I compared the three main methods : binary trees, random forest and GBM. As the output showed, the random forest was the most accurate with a near to zero out of sample error.
