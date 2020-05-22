@@ -1,7 +1,9 @@
 Coursera Practical Machine Learning - Final Project
 
 Pietro Zanetti
+
 5/22/2020
+
 This document is the final project for the Coursera “Practical Machine Learning” course
 
 Overview
@@ -14,3 +16,8 @@ The data consists of a Training data and a Test data (to be used to validate the
 The goal of your project is to predict the manner in which they did the exercise. This is the “classe” variable in the training set. You may use any of the other variables to predict with.
 
 Note: The dataset used in this project is a courtesy of “Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers’ Data Classification of Body Postures and Movements”
+
+CODE SUMMARY : 
+In the first section I worked with input data as to create a valid and clean dataset dividend in the testing and training (I used 70/30)
+Then, in orfer to make the best prediction, I compared the three main methods : binary trees, random forest and GBM. 
+As the output showed, the random forest was the most accurate with a near to zero out of sample error. 
