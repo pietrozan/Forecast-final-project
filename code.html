@@ -1,1 +1,260 @@
+DATA LOADING AND PROCESSING
+#library(e1071)
+library(caret)
+## Loading required package: lattice
+## Loading required package: ggplot2
+library(rpart)
+library(rpart.plot)
+library(RColorBrewer)
+library(rattle)
+## Rattle: A free graphical interface for data science with R.
+## Version 5.1.0 Copyright (c) 2006-2017 Togaware Pty Ltd.
+## Type 'rattle()' to shake, rattle, and roll your data.
+library(randomForest)
+## randomForest 4.6-12
+## Type rfNews() to see new features/changes/bug fixes.
+## 
+## Attaching package: 'randomForest'
+## The following object is masked from 'package:rattle':
+## 
+##     importance
+## The following object is masked from 'package:ggplot2':
+## 
+##     margin
+library(corrplot)
+## corrplot 0.84 loaded
+library(gbm)
+## Loading required package: survival
+## 
+## Attaching package: 'survival'
+## The following object is masked from 'package:caret':
+## 
+##     cluster
+## Loading required package: splines
+## Loading required package: parallel
+## Loaded gbm 2.1.3
+Cleaning and managing data
+train_in <- read.csv('./pml-training.csv', header=T)
+valid_in <- read.csv('./pml-testing.csv', header=T)
+dim(train_in)
+## [1] 19622   160
+dim(valid_in)
+## [1]  20 160
+Cleaning inputs
+trainData<- train_in[, colSums(is.na(train_in)) == 0]
+validData <- valid_in[, colSums(is.na(valid_in)) == 0]
+dim(trainData)
+## [1] 19622    93
+dim(validData)
+## [1] 20 60
+Removing the first seven variables 
+trainData <- trainData[, -c(1:7)]
+validData <- validData[, -c(1:7)]
+dim(trainData)
+## [1] 19622    86
+dim(validData)
+## [1] 20 53
+Preparing the dataset with training and testing set
+set.seed(1234) 
+inTrain <- createDataPartition(trainData$classe, p = 0.7, list = FALSE)
+trainData <- trainData[inTrain, ]
+testData <- trainData[-inTrain, ]
+dim(trainData)
+## [1] 13737    86
+dim(testData)
+## [1] 4124   86
+Finding and removing correlated predictors
+ NZV <- nearZeroVar(trainData)
+trainData <- trainData[, -NZV]
+testData  <- testData[, -NZV]
+dim(trainData)
+## [1] 13737    53
+dim(testData)
+## [1] 4124   53
+Correlation matrix
+cor_mat <- cor(trainData[, -53])
+corrplot(cor_mat, order = "FPC", method = "color", type = "upper", 
+         tl.cex = 0.8, tl.col = rgb(0, 0, 0))
+           highlyCorrelated = findCorrelation(cor_mat, cutoff=0.75)
 
+ names(trainData)[highlyCorrelated]
+
+ ##  [1] "accel_belt_z"      "roll_belt"         "accel_belt_y"     
+##  [4] "total_accel_belt"  "accel_dumbbell_z"  "accel_belt_x"     
+##  [7] "pitch_belt"        "magnet_dumbbell_x" "accel_dumbbell_y" 
+## [10] "magnet_dumbbell_y" "accel_arm_x"       "accel_dumbbell_x" 
+## [13] "accel_arm_z"       "magnet_arm_y"      "magnet_belt_z"    
+## [16] "accel_forearm_y"   "gyros_forearm_y"   "gyros_dumbbell_x" 
+## [19] "gyros_dumbbell_z"  "gyros_arm_x"
+ MODEL BUILDING : classification tree, random forest and GBM
+ Classification tree
+ set.seed(12345)
+decisionTreeMod1 <- rpart(classe ~ ., data=trainData, method="class")
+fancyRpartPlot(decisionTreeMod1)
+predictTreeMod1 <- predict(decisionTreeMod1, testData, type = "class")
+cmtree <- confusionMatrix(predictTreeMod1, testData$classe)
+cmtree
+## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction   A   B   C   D   E
+##          A 990 121  15  23   7
+##          B  32 402  31  56  55
+##          C  22  94 540 129  78
+##          D 120 142  74 437 115
+##          E  12  40  51  34 504
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.6967          
+##                  95% CI : (0.6824, 0.7107)
+##     No Information Rate : 0.2852          
+##     P-Value [Acc > NIR] : < 2.2e-16       
+##                                           
+##                   Kappa : 0.6174          
+##  Mcnemar's Test P-Value : < 2.2e-16       
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            0.8418  0.50313   0.7595   0.6436   0.6640
+## Specificity            0.9437  0.94767   0.9054   0.8691   0.9593
+## Pos Pred Value         0.8564  0.69792   0.6257   0.4921   0.7863
+## Neg Pred Value         0.9373  0.88811   0.9476   0.9252   0.9268
+## Prevalence             0.2852  0.19374   0.1724   0.1646   0.1840
+## Detection Rate         0.2401  0.09748   0.1309   0.1060   0.1222
+## Detection Prevalence   0.2803  0.13967   0.2093   0.2153   0.1554
+## Balanced Accuracy      0.8928  0.72540   0.8324   0.7563   0.8117
+  # plot matrix results
+plot(cmtree$table, col = cmtree$byClass, 
+     main = paste("Decision Tree - Accuracy =", round(cmtree$overall['Accuracy'], 4)))
+#the accuracy rate of the model is low: 0.6967 and therefore the out-of-sample-error is about 0.3.
+  Prediction with random forest
+  controlRF <- trainControl(method="cv", number=3, verboseIter=FALSE)
+modRF1 <- train(classe ~ ., data=trainData, method="rf", trControl=controlRF)
+modRF1$finalModel
+  ## 
+## Call:
+##  randomForest(x = x, y = y, mtry = param$mtry) 
+##                Type of random forest: classification
+##                      Number of trees: 500
+## No. of variables tried at each split: 27
+## 
+##         OOB estimate of  error rate: 0.65%
+## Confusion matrix:
+##      A    B    C    D    E class.error
+## A 3902    3    0    0    1 0.001024066
+## B   23 2628    6    0    1 0.011286682
+## C    0   11 2379    6    0 0.007095159
+## D    0    0   23 2227    2 0.011101243
+## E    0    2    4    7 2512 0.005148515
+  predictRF1 <- predict(modRF1, newdata=testData)
+cmrf <- confusionMatrix(predictRF1, testData$classe)
+cmrf## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1176    0    0    0    0
+##          B    0  799    0    0    0
+##          C    0    0  711    0    0
+##          D    0    0    0  679    0
+##          E    0    0    0    0  759
+## 
+## Overall Statistics
+##                                      
+##                Accuracy : 1          
+##                  95% CI : (0.9991, 1)
+##     No Information Rate : 0.2852     
+##     P-Value [Acc > NIR] : < 2.2e-16  
+##                                      
+##                   Kappa : 1          
+##  Mcnemar's Test P-Value : NA         
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            1.0000   1.0000   1.0000   1.0000    1.000
+## Specificity            1.0000   1.0000   1.0000   1.0000    1.000
+## Pos Pred Value         1.0000   1.0000   1.0000   1.0000    1.000
+## Neg Pred Value         1.0000   1.0000   1.0000   1.0000    1.000
+## Prevalence             0.2852   0.1937   0.1724   0.1646    0.184
+## Detection Rate         0.2852   0.1937   0.1724   0.1646    0.184
+## Detection Prevalence   0.2852   0.1937   0.1724   0.1646    0.184
+## Balanced Accuracy      1.0000   1.0000   1.0000   1.0000    1.000
+#As we can see, the accuracy rate is near 1, with an approximate error of ~ 0. 
+ Predicition with GBM
+ set.seed(12345)
+controlGBM <- trainControl(method = "repeatedcv", number = 5, repeats = 1)
+modGBM  <- train(classe ~ ., data=trainData, method = "gbm", trControl = controlGBM, verbose = FALSE)
+modGBM$finalModel
+           # print model summary
+print(modGBM)
+## Stochastic Gradient Boosting 
+## 
+## 13737 samples
+##    52 predictor
+##     5 classes: 'A', 'B', 'C', 'D', 'E' 
+## 
+## No pre-processing
+## Resampling: Cross-Validated (5 fold, repeated 1 times) 
+## Summary of sample sizes: 10990, 10991, 10989, 10990, 10988 
+## Resampling results across tuning parameters:
+## 
+##   interaction.depth  n.trees  Accuracy   Kappa    
+##   1                   50      0.7510370  0.6845815
+##   1                  100      0.8171350  0.7686429
+##   1                  150      0.8533135  0.8144335
+##   2                   50      0.8520032  0.8125199
+##   2                  100      0.9071828  0.8825490
+##   2                  150      0.9318612  0.9137796
+##   3                   50      0.8950994  0.8671743
+##   3                  100      0.9414709  0.9259338
+##   3                  150      0.9609802  0.9506365
+## 
+## Tuning parameter 'shrinkage' was held constant at a value of 0.1
+## 
+## Tuning parameter 'n.minobsinnode' was held constant at a value of 10
+## Accuracy was used to select the optimal model using the largest value.
+## The final values used for the model were n.trees = 150,
+##  interaction.depth = 3, shrinkage = 0.1 and n.minobsinnode = 10.
+ predictGBM <- predict(modGBM, newdata=testData)
+cmGBM <- confusionMatrix(predictGBM, testData$classe)
+cmGBM
+## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1167   23    0    0    1
+##          B    6  765   14    0    8
+##          C    2   11  688   19    3
+##          D    1    0    8  657    9
+##          E    0    0    1    3  738
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.9736          
+##                  95% CI : (0.9682, 0.9782)
+##     No Information Rate : 0.2852          
+##     P-Value [Acc > NIR] : < 2.2e-16       
+##                                           
+##                   Kappa : 0.9665          
+##  Mcnemar's Test P-Value : NA              
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            0.9923   0.9574   0.9677   0.9676   0.9723
+## Specificity            0.9919   0.9916   0.9897   0.9948   0.9988
+## Pos Pred Value         0.9798   0.9647   0.9516   0.9733   0.9946
+## Neg Pred Value         0.9969   0.9898   0.9932   0.9936   0.9938
+## Prevalence             0.2852   0.1937   0.1724   0.1646   0.1840
+## Detection Rate         0.2830   0.1855   0.1668   0.1593   0.1790
+## Detection Prevalence   0.2888   0.1923   0.1753   0.1637   0.1799
+## Balanced Accuracy      0.9921   0.9745   0.9787   0.9812   0.9856
+ Here accuracy is 0.97 with an out of sample error of 0.026
+  Comparing the three models:
+  Results <- predict(modRF1, newdata=validData)
+Results
+  The best is the Random forest and therefore the results output: 
+  ##  [1] B A B A A E D B A A B C B A E E A B B B
+## Levels: A B C D E
